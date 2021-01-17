@@ -4,5 +4,7 @@
 
 int main(int argc, char **argv)
 {
-    printf("%s\n", fixed_xor(argv[1], argv[2]));
+    char *out = fixed_xor(argv[1], argv[2]);
+    printf("%s\n", out);
+    free(out);
 }

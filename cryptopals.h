@@ -11,18 +11,19 @@ unsigned char *hex_to_bytes(const char *hex_str, int *bytes_len)
     if (need_padding) {
         padded_str = malloc(strlen(hex_str) + 2);
         strcat(padded_str, padding);
-        strcat(padded_str, hex_str);
     } else {
         padded_str = malloc(strlen(hex_str) + 1);
-        strcat(padded_str, hex_str);
     }
+    strcat(padded_str, hex_str);
+    char *p = padded_str;
     int padded_len = strlen(padded_str);
     *bytes_len = padded_len / 2;
     unsigned char *bytes = malloc(*bytes_len);
     for (int count = 0; count < padded_len; count++) {
-        sscanf(padded_str, "%2hhx", &bytes[count]);
-        padded_str += 2;
+        sscanf(p, "%2hhx", &bytes[count]);
+        p += 2;
     }
+    free(padded_str);
     return bytes;
 }
 
@@ -34,6 +35,7 @@ char *bytes_to_hex(unsigned char *bytes, int bytes_len)
         sprintf(temp, "%02X", bytes[i]);
         strncat(hex_out, temp, 2);
     }
+    free(temp);
     return hex_out;
 }
 
@@ -51,6 +53,7 @@ unsigned char *hex_to_base64(const char *hex_str)
     int bytes_len;
     bytes = hex_to_bytes(hex_str, &bytes_len);
     base64 = bytes_to_base64(bytes, bytes_len);
+    free(bytes);
     return base64;
 }
 
@@ -64,5 +67,8 @@ char *fixed_xor(const char *hex_a, const char *hex_b)
         bytes_out[i] = bytes_a[i] ^ bytes_b[i];
     }
     char *hex_out = bytes_to_hex(bytes_out, bytes_len);
+    free(bytes_a);
+    free(bytes_b);
+    free(bytes_out);
     return hex_out;
 }
