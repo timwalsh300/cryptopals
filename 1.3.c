@@ -1,25 +1,13 @@
 /* https://cryptopals.com/sets/1/challenges/3 */
 
 #include "cryptopals.h"
+#include <float.h>
 
-float get_simple_key_score(unsigned char *decryption, int num_bytes)
-{
-    int letters = 0;
-    for (int i = 0; i < num_bytes; i++) {
-        if (decryption[i] >= 'A' && decryption[i] <= 'Z' ||
-            decryption[i] >= 'a' && decryption[i] <= 'z' ||
-            decryption[i] == ' ') {
-                letters++;
-        }
-    }
-    return 1.0 - (float) letters / (float) num_bytes;
-}
-
-float get_fancy_key_score(unsigned char *decryption, int num_bytes)
+float get_key_score(unsigned char *decryption, int num_bytes)
 {
     int chars[26];
     memset(chars, 0, 26 * sizeof(int));
-    int non_abc = 0;
+    int space = 0, non_abc = 0;
     float char_freqs[26];
     float reference_char_freqs[26] = {0.085, 0.021, 0.045, 0.034, 0.111,
                                       0.018, 0.025, 0.030, 0.075, 0.002,
@@ -27,12 +15,14 @@ float get_fancy_key_score(unsigned char *decryption, int num_bytes)
                                       0.032, 0.002, 0.076, 0.075, 0.069,
                                       0.036, 0.010, 0.013, 0.003, 0.018,
                                       0.003};
-    float score = 0.0;
+    float cumulative_delta = 0.0;
     for (int i = 0; i < num_bytes; i++) {
         if (decryption[i] >= 'a' && decryption[i] <= 'z') {
             chars[decryption[i] - 97]++;
         } else if (decryption[i] >= 'A' && decryption[i] <= 'Z') {
             chars[decryption[i] - 65]++;
+        } else if (decryption[i] == ' ') {
+            space++;
         } else {
             non_abc++;
         }
@@ -43,9 +33,9 @@ float get_fancy_key_score(unsigned char *decryption, int num_bytes)
         if (delta < 0) {
             delta = delta * -1.0;
         }
-        score += delta;
+        cumulative_delta += delta;
     }
-    return score + get_simple_key_score(decryption, num_bytes);
+    return cumulative_delta + ((float) non_abc / (float) num_bytes);
 }
 
 int main(int argc, char **argv)
@@ -56,16 +46,16 @@ int main(int argc, char **argv)
     float test_score;
     unsigned char best_key;
     unsigned char *best_decryption = malloc(num_bytes + 1);
-    float best_score = 1000000.0;
-    for (unsigned char k = 65; k <= 122; k++) {
-        if (k >= 91 && k <= 96) {
+    float best_score = FLT_MAX;
+    for (unsigned char k = 'A'; k <= 'z'; k++) {
+        if (k > 'Z' && k < 'a') {
             continue;
         }
         memset(test_key, k, num_bytes);
         char *test_key_hex = bytes_to_hex(test_key, num_bytes);
         char *test_xor_out = fixed_xor(argv[1], test_key_hex);
         unsigned char *test_decryption = hex_to_bytes(test_xor_out, &num_bytes);
-        test_score = get_fancy_key_score(test_decryption, num_bytes);
+        test_score = get_key_score(test_decryption, num_bytes);
         printf("%c %5.3f ", k, test_score);
         if (test_score <= best_score) {
             best_score = test_score;
@@ -74,9 +64,7 @@ int main(int argc, char **argv)
             printf("BEST SO FAR!");
         }
         printf("\n");
-//        free(test_key_hex);
-//        free(test_xor_out);
-//        free(test_decryption);
+        memset(test_key_hex, 0, num_bytes);
     }
     printf("\nbest key: %c\n", best_key);
     printf("best decryption: %s\n", best_decryption);
