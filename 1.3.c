@@ -45,7 +45,7 @@ int main(int argc, char **argv)
     unsigned char *test_key = malloc(num_bytes);
     float test_score;
     unsigned char best_key;
-    unsigned char *best_decryption = malloc(num_bytes + 1);
+    unsigned char *best_decryption = malloc(num_bytes);
     float best_score = FLT_MAX;
     for (unsigned char k = 'A'; k <= 'z'; k++) {
         if (k > 'Z' && k < 'a') {
@@ -64,10 +64,16 @@ int main(int argc, char **argv)
             printf("BEST SO FAR!");
         }
         printf("\n");
-        memset(test_key_hex, 0, num_bytes);
+        free(test_decryption);
+        free(test_key_hex);
+        free(test_xor_out);
     }
     printf("\nbest key: %c\n", best_key);
-    printf("best decryption: %s\n", best_decryption);
+    printf("best decryption: ");
+    for (int i = 0; i < num_bytes; i++) {
+        printf("%c", best_decryption[i]);
+    }
+    printf("\n");
     free(encrypted_bytes);
     free(test_key);
     free(best_decryption);

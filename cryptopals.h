@@ -6,20 +6,17 @@
 unsigned char *hex_to_bytes(const char *hex_str, int *bytes_len)
 {
     int need_padding = strlen(hex_str) % 2 == 0 ? 0 : 1;
-    char *padded_str;
+    char *padded_str = malloc(strlen(hex_str) + 2);
+    memset(padded_str, 0, strlen(hex_str) + 2);
     char *padding = "0";
     if (need_padding) {
-        padded_str = malloc(strlen(hex_str) + 2);
         strcat(padded_str, padding);
-    } else {
-        padded_str = malloc(strlen(hex_str) + 1);
     }
     strcat(padded_str, hex_str);
+    *bytes_len = strlen(padded_str) / 2;
     char *p = padded_str;
-    int padded_len = strlen(padded_str);
-    *bytes_len = padded_len / 2;
     unsigned char *bytes = malloc(*bytes_len);
-    for (int count = 0; count < padded_len; count++) {
+    for (int count = 0; count < *bytes_len; count++) {
         sscanf(p, "%2hhx", &bytes[count]);
         p += 2;
     }
@@ -29,8 +26,10 @@ unsigned char *hex_to_bytes(const char *hex_str, int *bytes_len)
 
 char *bytes_to_hex(unsigned char *bytes, int bytes_len)
 {
+    char *temp = malloc(3);
+    memset(temp, 0, 3);
     char *hex_out = malloc(bytes_len * 2 + 1);
-    char *temp = malloc(2);
+    memset(hex_out, 0, bytes_len * 2 + 1);
     for (int i = 0; i < bytes_len; i++) {
         sprintf(temp, "%02X", bytes[i]);
         strncat(hex_out, temp, 2);
