@@ -7,6 +7,10 @@ unsigned char *hex_to_bytes(const char *hex_str, int *bytes_len)
 {
     int need_padding = strlen(hex_str) % 2 == 0 ? 0 : 1;
     char *padded_str = malloc(strlen(hex_str) + 2);
+    // if we don't initialize this buffer to be all 0, we will start
+    // concatenating the string we want with garbage, wherever we find the
+    // first random null character, and we'll measure an incorrect length
+    // which will ripple through other function calls
     memset(padded_str, 0, strlen(hex_str) + 2);
     char *padding = "0";
     if (need_padding) {
@@ -27,8 +31,14 @@ unsigned char *hex_to_bytes(const char *hex_str, int *bytes_len)
 char *bytes_to_hex(unsigned char *bytes, int bytes_len)
 {
     char *temp = malloc(3);
+    // if we don't initialize this buffer to be all 0, we will start
+    // concatenating the string we want with garbage, wherever we find the
+    // first random null character
     memset(temp, 0, 3);
     char *hex_out = malloc(bytes_len * 2 + 1);
+    // if we don't initialize this buffer to be all 0, we will start
+    // concatenating the string we want with garbage, wherever we find the
+    // first random null character
     memset(hex_out, 0, bytes_len * 2 + 1);
     for (int i = 0; i < bytes_len; i++) {
         sprintf(temp, "%02X", bytes[i]);
@@ -70,4 +80,49 @@ char *fixed_xor(const char *hex_a, const char *hex_b)
     free(bytes_b);
     free(bytes_out);
     return hex_out;
+}
+
+float get_key_score(unsigned char *decryption, int num_bytes)
+{
+    int chars[26];
+    // initialize to 0, otherwise we will be incrementing garbage
+    memset(chars, 0, 26 * sizeof(int));
+    int space = 0, non_abc = 0;
+    float char_freqs[26];
+    // according to one source, these are the proportions of alphabetic
+    // letters (case-insensitive) found in English words (not necessarily
+    // English text dominated by words like "the," but good enough)
+    float reference_char_freqs[26] = {0.085, 0.021, 0.045, 0.034, 0.111,
+                                      0.018, 0.025, 0.030, 0.075, 0.002,
+                                      0.011, 0.055, 0.030, 0.067, 0.071,
+                                      0.032, 0.002, 0.076, 0.075, 0.069,
+                                      0.036, 0.010, 0.013, 0.003, 0.018,
+                                      0.003};
+    // let's see how many of each letter we have, plus the common ' ' space
+    // character between words vs. other characters
+    for (int i = 0; i < num_bytes; i++) {
+        if (decryption[i] >= 'a' && decryption[i] <= 'z') {
+            chars[decryption[i] - 97]++;
+        } else if (decryption[i] >= 'A' && decryption[i] <= 'Z') {
+            chars[decryption[i] - 65]++;
+        } else if (decryption[i] == ' ') {
+            space++;
+        } else {
+            non_abc++;
+        }
+    }
+    // let's find in the aggregate how far off the given text is from the
+    // proportions above
+    float cumulative_delta = 0.0;
+    for (int i = 0; i < 26; i++) {
+        char_freqs[i] = (float) chars[i] / (float) (num_bytes - non_abc);
+        float delta = char_freqs[i] - reference_char_freqs[i];
+        if (delta < 0) {
+            delta = delta * -1.0;
+        }
+        cumulative_delta += delta;
+    }
+    // we'll add that to the proportion of non-letters and spaces, so a
+    // low score is best
+    return cumulative_delta + ((float) non_abc / (float) num_bytes);
 }

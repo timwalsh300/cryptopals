@@ -3,41 +3,6 @@
 #include "cryptopals.h"
 #include <float.h>
 
-float get_key_score(unsigned char *decryption, int num_bytes)
-{
-    int chars[26];
-    memset(chars, 0, 26 * sizeof(int));
-    int space = 0, non_abc = 0;
-    float char_freqs[26];
-    float reference_char_freqs[26] = {0.085, 0.021, 0.045, 0.034, 0.111,
-                                      0.018, 0.025, 0.030, 0.075, 0.002,
-                                      0.011, 0.055, 0.030, 0.067, 0.071,
-                                      0.032, 0.002, 0.076, 0.075, 0.069,
-                                      0.036, 0.010, 0.013, 0.003, 0.018,
-                                      0.003};
-    float cumulative_delta = 0.0;
-    for (int i = 0; i < num_bytes; i++) {
-        if (decryption[i] >= 'a' && decryption[i] <= 'z') {
-            chars[decryption[i] - 97]++;
-        } else if (decryption[i] >= 'A' && decryption[i] <= 'Z') {
-            chars[decryption[i] - 65]++;
-        } else if (decryption[i] == ' ') {
-            space++;
-        } else {
-            non_abc++;
-        }
-    }
-    for (int i = 0; i < 26; i++) {
-        char_freqs[i] = (float) chars[i] / (float) (num_bytes - non_abc);
-        float delta = char_freqs[i] - reference_char_freqs[i];
-        if (delta < 0) {
-            delta = delta * -1.0;
-        }
-        cumulative_delta += delta;
-    }
-    return cumulative_delta + ((float) non_abc / (float) num_bytes);
-}
-
 int main(int argc, char **argv)
 {
     int num_bytes;
@@ -47,8 +12,8 @@ int main(int argc, char **argv)
     unsigned char best_key;
     unsigned char *best_decryption = malloc(num_bytes);
     float best_score = FLT_MAX;
-    for (unsigned char k = 'A'; k <= 'z'; k++) {
-        if (k > 'Z' && k < 'a') {
+    for (unsigned char k = ' '; k <= '~'; k++) {
+        if (k == '0') {
             continue;
         }
         memset(test_key, k, num_bytes);
