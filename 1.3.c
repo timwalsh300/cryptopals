@@ -17,9 +17,7 @@ int main(int argc, char **argv)
             continue;
         }
         memset(test_key, k, num_bytes);
-        char *test_key_hex = bytes_to_hex(test_key, num_bytes);
-        char *test_xor_out = fixed_xor(argv[1], test_key_hex);
-        unsigned char *test_decryption = hex_to_bytes(test_xor_out, &num_bytes);
+        unsigned char *test_decryption = fixed_bytes_xor(encrypted_bytes, test_key, num_bytes);
         test_score = get_key_score(test_decryption, num_bytes);
         printf("%c %5.3f ", k, test_score);
         if (test_score <= best_score) {
@@ -30,8 +28,6 @@ int main(int argc, char **argv)
         }
         printf("\n");
         free(test_decryption);
-        free(test_key_hex);
-        free(test_xor_out);
     }
     printf("\nbest key: %c\n", best_key);
     printf("best decryption: ");

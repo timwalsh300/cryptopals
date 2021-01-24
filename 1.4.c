@@ -28,9 +28,8 @@ int main(int argc, char **argv)
                 continue;
             }
             memset(test_key, k, num_bytes);
-            char *test_key_hex = bytes_to_hex(test_key, num_bytes);
-            char *test_xor_out = fixed_xor(hex_line, test_key_hex);
-            unsigned char *test_decryption = hex_to_bytes(test_xor_out, &num_bytes);
+            unsigned char *line_bytes = hex_to_bytes(hex_line, &num_bytes);
+            unsigned char *test_decryption = fixed_bytes_xor(line_bytes, test_key, num_bytes);
             test_score = get_key_score(test_decryption, num_bytes);
             if (test_score < best_score) {
                 memcpy(best_hex_line, hex_line, num_bytes * 2 + 1);
@@ -41,9 +40,8 @@ int main(int argc, char **argv)
             // these must be freed inside the for loop, otherwise we leak
             // memory on every iteration when new space gets allocated and
             // assigned to the same pointer
+            free(line_bytes);
             free(test_decryption);
-            free(test_key_hex);
-            free(test_xor_out);
         }
     }
     printf("\nbest line: %s\n", best_hex_line);

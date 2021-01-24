@@ -66,20 +66,13 @@ unsigned char *hex_to_base64(const char *hex_str)
     return base64;
 }
 
-char *fixed_xor(const char *hex_a, const char *hex_b)
+unsigned char *fixed_bytes_xor(unsigned char *bytes_a, unsigned char *bytes_b, int bytes_len)
 {
-    int bytes_len;
-    unsigned char *bytes_a = hex_to_bytes(hex_a, &bytes_len);
-    unsigned char *bytes_b = hex_to_bytes(hex_b, &bytes_len);
     unsigned char *bytes_out = malloc(bytes_len);
     for (int i = 0; i < bytes_len; i++) {
         bytes_out[i] = bytes_a[i] ^ bytes_b[i];
     }
-    char *hex_out = bytes_to_hex(bytes_out, bytes_len);
-    free(bytes_a);
-    free(bytes_b);
-    free(bytes_out);
-    return hex_out;
+    return bytes_out;
 }
 
 float get_key_score(unsigned char *decryption, int num_bytes)
