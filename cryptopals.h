@@ -48,9 +48,17 @@ char *bytes_to_hex(unsigned char *bytes, int bytes_len)
     return hex_out;
 }
 
+unsigned char *base64_to_bytes(unsigned char *base64, int base64_len)
+{
+    int buffer_size = base64_len < 4 ? 4 : base64_len / 4 * 3 + 1;
+    unsigned char *bytes = malloc(buffer_size);
+    EVP_DecodeBlock(bytes, base64, base64_len);
+    return bytes;
+}
+
 unsigned char *bytes_to_base64(unsigned char *bytes, int bytes_len)
 {
-    int buffer_size = bytes_len < 48 ? 66 : bytes_len / 48 * 65 + 1;
+    int buffer_size = bytes_len < 3 ? 5 : bytes_len / 3 * 4 + 1;
     unsigned char *base64 = malloc(buffer_size);
     EVP_EncodeBlock(base64, bytes, bytes_len);
     return base64;
@@ -118,4 +126,13 @@ float get_key_score(unsigned char *decryption, int num_bytes)
     // we'll add that to the proportion of non-letters and spaces, so a
     // low score is best
     return cumulative_delta + ((float) non_abc / (float) num_bytes);
+}
+
+int get_hamming_distance(unsigned char *a, unsigned char *b, int num_bytes)
+{
+    int hamming_distance = 0;
+    for (int i = 0; i < num_bytes; i++) {
+        hamming_distance += __builtin_popcount(a[i] ^ b[i]);
+    }
+    return hamming_distance;
 }
