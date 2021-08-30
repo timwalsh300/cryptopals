@@ -9,31 +9,26 @@ int main(int argc, char **argv)
     // read in the file with base64
     FILE *fp = fopen(argv[1], "r");
     int c;
-    char base64_char[2];
-    base64_char[1] = '\0';
     char base64[4096];
+    int num_c = 0;
     int num_bytes;
     while ((c = fgetc(fp)) != EOF) {
         if (c == '\n') {
             continue;
         }
-        base64_char[0] = (char) c;
-        strncat(base64, base64_char, 1);
+        base64[num_c] = (char) c;
+        num_c++;
     }
+    base64[num_c] = '\0';
     fclose(fp);
 
     // convert the base64 to bytes
     unsigned char *bytes = base64_to_bytes(base64, strlen(base64));
     printf("base64 characters read: %d\n", (int) strlen(base64));
-    int bytes_length = strlen(base64) / 4 * 3;
-    for (int i = 0; i < bytes_length; i++) {
-        printf("%c", bytes[i]);
-    }
-    printf("\n");
+    int bytes_length = strlen(base64) * 3 / 4;
 
     int best_keysize;
     // find likely key size in bytes
-    /*
     float best_distance = 2^32;
     for (int keysize = 2; keysize <= 32; keysize++) {
         unsigned char block1[keysize];
@@ -52,7 +47,6 @@ int main(int argc, char **argv)
         }
     }
     printf("most likely key size is %d\n", best_keysize);
-    */
 
     // try this process for every possible key size, and then evaluate
     // all possible decryptions for the actual best

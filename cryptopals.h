@@ -53,7 +53,11 @@ unsigned char *base64_to_bytes(unsigned char *base64, int base64_len)
 {
     int buffer_size = base64_len < 4 ? 4 : base64_len / 4 * 3 + 1;
     unsigned char *bytes = malloc(buffer_size);
-    printf("bytes returned: %d\n", EVP_DecodeBlock(bytes, base64, base64_len));
+    int code = EVP_DecodeBlock(bytes, base64, base64_len);
+    if (code == -1) {
+        printf("failed to parse base64 input\n");
+        exit(EXIT_FAILURE);
+    }
     return bytes;
 }
 
@@ -107,7 +111,7 @@ float get_key_score(unsigned char *decryption, int num_bytes)
             chars[decryption[i] - 97]++;
         } else if (decryption[i] >= 'A' && decryption[i] <= 'Z') {
             chars[decryption[i] - 65]++;
-        } else if (decryption[i] == ' ') {
+        } else if (decryption[i] == ' ' || decryption[i] == '\n') {
             space++;
         } else {
             non_abc++;
@@ -117,16 +121,17 @@ float get_key_score(unsigned char *decryption, int num_bytes)
     // proportions above
     float cumulative_delta = 0.0;
     for (int i = 0; i < 26; i++) {
-        char_freqs[i] = (float) chars[i] / (float) (num_bytes - non_abc);
+        char_freqs[i] = (float) chars[i] /
+                        (float) (num_bytes - non_abc - space);
         float delta = char_freqs[i] - reference_char_freqs[i];
         if (delta < 0) {
             delta = delta * -1.0;
         }
         cumulative_delta += delta;
     }
-    // we'll add that to the proportion of non-letters and spaces, so a
-    // low score is best
-    return cumulative_delta + ((float) non_abc / (float) num_bytes);
+    // we'll add that to the triple-weight proportion of non-letters/spaces
+    //so a low score is best
+    return cumulative_delta + (3 * (float) non_abc / (float) num_bytes);
 }
 
 // given a block of ciphertext encrpyted with a single character key, this
