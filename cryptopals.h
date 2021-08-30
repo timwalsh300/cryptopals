@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <float.h>
 #include <openssl/evp.h>
 
 unsigned char *hex_to_bytes(const char *hex_str, int *bytes_len)
@@ -52,7 +53,7 @@ unsigned char *base64_to_bytes(unsigned char *base64, int base64_len)
 {
     int buffer_size = base64_len < 4 ? 4 : base64_len / 4 * 3 + 1;
     unsigned char *bytes = malloc(buffer_size);
-    EVP_DecodeBlock(bytes, base64, base64_len);
+    printf("bytes returned: %d\n", EVP_DecodeBlock(bytes, base64, base64_len));
     return bytes;
 }
 
@@ -126,6 +127,33 @@ float get_key_score(unsigned char *decryption, int num_bytes)
     // we'll add that to the proportion of non-letters and spaces, so a
     // low score is best
     return cumulative_delta + ((float) non_abc / (float) num_bytes);
+}
+
+// given a block of ciphertext encrpyted with a single character key, this
+// tries all possible characters to find the key that produces the plaintext
+// which is most likely English text
+unsigned char find_single_char_key(unsigned char *ciphertext, int length)
+{
+    unsigned char best_key;
+    float best_score = FLT_MAX;
+    unsigned char test_key[length];
+    unsigned char *test_decryption;
+    for (unsigned char k = ' '; k <= '~'; k++) {
+        if (k == '0') {
+            continue;
+        }
+        memset(test_key, k, length);
+        test_decryption = fixed_bytes_xor(ciphertext,
+                                          test_key,
+                                          length);
+        float test_score = get_key_score(test_decryption, length);
+        if (test_score < best_score) {
+            best_score = test_score;
+            best_key = k;
+        }
+        free(test_decryption);
+    }
+    return best_key;
 }
 
 int get_hamming_distance(unsigned char *a, unsigned char *b, int num_bytes)
