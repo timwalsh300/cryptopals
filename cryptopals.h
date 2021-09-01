@@ -3,6 +3,7 @@
 #include <string.h>
 #include <float.h>
 #include <openssl/evp.h>
+#include <pthread.h>
 
 unsigned char *hex_to_bytes(const char *hex_str, int *bytes_len)
 {
@@ -168,4 +169,27 @@ int get_hamming_distance(unsigned char *a, unsigned char *b, int num_bytes)
         hamming_distance += __builtin_popcount(a[i] ^ b[i]);
     }
     return hamming_distance;
+}
+
+int find_likely_keysize(unsigned char *bytes)
+{
+    int best_keysize;
+    float best_distance = 2^32;
+    for (int keysize = 2; keysize <= 32; keysize++) {
+        unsigned char block1[keysize];
+        unsigned char block2[keysize];
+        memcpy(block1, bytes, keysize);
+        memcpy(block2, bytes + keysize, keysize);
+        float norm_distance = (float) get_hamming_distance(block1,
+                                                           block2,
+                                                           keysize) /
+                              (float) keysize;
+        printf("key size: %d, normalized distance: %3.2f\n",
+                keysize, norm_distance);
+        if (norm_distance <= best_distance) {
+            best_distance = norm_distance;
+            best_keysize = keysize;
+        }
+    }
+    return best_keysize;
 }

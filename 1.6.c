@@ -1,5 +1,52 @@
 #include "cryptopals.h"
 
+struct thread_data {
+    unsigned char *bytes;
+    int bytes_length;
+    int keysize;
+    unsigned char *key;
+    unsigned char *decryption;
+    float score;
+};
+
+struct thread_data thread_data_array[31];
+
+void *evaluate_keysize(void *thread_arg)
+{
+    struct thread_data *data = (struct thread_data *) thread_arg;
+    // create a buffer with the first byte of each block, then a buffer
+    // with the second byte of each block, etc. to analyze and discover
+    // the key one byte at a time
+    unsigned char blocks[data->keysize][data->bytes_length /
+                                        data->keysize];
+    int counter = 0;
+    for (int i = 0; i < data->keysize; i++) {
+        for (int j = i; j < data->bytes_length; j += data->keysize) {
+            blocks[i][counter] = data->bytes[j];
+            counter++;
+        }
+        counter = 0;
+    }
+
+    // analyze each buffer created above to find the character key that
+    // yields a best fitting distribution of english characters
+    for (int i = 0; i < data->keysize; i++) {
+        data->key[i] = find_single_char_key(blocks[i],
+                                      data->bytes_length /
+                                      data->keysize);
+    }
+
+    // apply the key to decrypt the original ciphertext
+    counter = 0;
+    for (int i = 0; i < data->bytes_length; i++) {
+        data->decryption[i] = data->bytes[i] ^
+                             data->key[counter % data->keysize];
+        counter++;
+    }
+    data->score = get_key_score(data->decryption, data->bytes_length);
+    printf("Key size %d, score %3.2f\n", data->keysize, data->score);
+}
+
 int main(int argc, char **argv)
 {
     // unsigned char *a = "this is a test";
@@ -27,72 +74,52 @@ int main(int argc, char **argv)
     printf("base64 characters read: %d\n", (int) strlen(base64));
     int bytes_length = strlen(base64) * 3 / 4;
 
-    int best_keysize;
     // find likely key size in bytes
-    float best_distance = 2^32;
-    for (int keysize = 2; keysize <= 32; keysize++) {
-        unsigned char block1[keysize];
-        unsigned char block2[keysize];
-        memcpy(block1, bytes, keysize);
-        memcpy(block2, bytes + keysize, keysize);
-        float norm_distance = (float) get_hamming_distance(block1,
-                                                           block2,
-                                                           keysize) /
-                              (float) keysize;
-        printf("key size: %d, normalized distance: %3.2f\n",
-                keysize, norm_distance);
-        if (norm_distance <= best_distance) {
-            best_distance = norm_distance;
-            best_keysize = keysize;
-        }
-    }
+    int best_keysize = find_likely_keysize(bytes);
     printf("most likely key size is %d\n", best_keysize);
 
     // try this process for every possible key size, and then evaluate
     // all possible decryptions for the actual best
+    pthread_t thread[31];
+    int rc;
+    void *status;
     float best_score = FLT_MAX;
     unsigned char best_key[33];
     unsigned char best_decryption[bytes_length];
     for (int keysize = 2; keysize <= 32; keysize++) {
-        // create a buffer with the first byte of each block, then a buffer
-        // with the second byte each block, etc. to analyze and discover the
-        // key one byte at a time
-        unsigned char blocks[keysize][bytes_length / keysize];
-        for (int i = 0; i < keysize; i++) {
-            unsigned char *ptr = blocks[i];
-            for (int j = i; j < bytes_length; j += keysize) {
-                memcpy(ptr, &(bytes[j]), 1);
-                ptr++;
-            }
+        thread_data_array[keysize - 2].bytes = bytes;
+        thread_data_array[keysize - 2].bytes_length = bytes_length;
+        thread_data_array[keysize - 2].keysize = keysize;
+        thread_data_array[keysize - 2].key = malloc(keysize);
+        thread_data_array[keysize - 2].decryption = malloc(bytes_length);
+        thread_data_array[keysize - 2].score = 0.0;
+        rc = pthread_create(&thread[keysize - 2], NULL, evaluate_keysize,
+                            (void *) &thread_data_array[keysize - 2]);
+        if (rc) {
+            printf("keysize %d thread failed: code %d\n", keysize, rc);
         }
-
-        // analyze each buffer created above to find the character key that
-        // yields a best fitting distribution of english characters
-        unsigned char key[keysize];
-        for (int i = 0; i < keysize; i++) {
-            key[i] = find_single_char_key(blocks[i],
-                                          bytes_length / keysize);
-        }
-
-        // apply the key to decrypt the original ciphertext
-        int counter = 0;
-        unsigned char test_decryption[bytes_length];
-        for (int i = 0; i < bytes_length; i++) {
-            test_decryption[i] = bytes[i] ^ key[counter % keysize];
-            counter++;
-        }
-        float score = get_key_score(test_decryption, bytes_length);
-        if (score < best_score) {
-            best_score = score;
-            memcpy(best_decryption, test_decryption, bytes_length);
+    }
+    for (int keysize = 2; keysize <= 32; keysize++) {
+        pthread_join(thread[keysize - 2], &status);
+        if (thread_data_array[keysize - 2].score < best_score) {
+            best_score = thread_data_array[keysize - 2].score;
             best_keysize = keysize;
-            memcpy(best_key, key, keysize);
-            best_key[keysize] = '\0';
+            memcpy(best_key,
+                   thread_data_array[keysize - 2].key,
+                   keysize);
+            memcpy(best_decryption,
+                   thread_data_array[keysize - 2].decryption,
+                   bytes_length);
         }
-        printf("Key size %d, score %3.2f\n", keysize, score);
+        free(thread_data_array[keysize - 2].key);
+        free(thread_data_array[keysize - 2].decryption);
     }
     free(bytes);
-    printf("Best key is %s\n", best_key);
+    printf("Best key is ");
+    for (int i = 0; i < best_keysize; i++) {
+        printf("%c", best_key[i]);
+    }
+    printf("\n");
     printf("Best decryption is...\n");
     for (int i = 0; i < bytes_length; i++) {
         printf("%c", best_decryption[i]);
