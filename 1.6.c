@@ -4,12 +4,19 @@ struct thread_data {
     unsigned char *bytes;
     int bytes_length;
     int keysize;
+    int *best_keysize;
     unsigned char *key;
+    unsigned char *best_key;
     unsigned char *decryption;
+    unsigned char *best_decryption;
     float score;
+    float *best_score;
 };
 
+// try 31 different key and block sizes, between 2 and 32 bytes
 struct thread_data thread_data_array[31];
+
+pthread_mutex_t global_update;
 
 void *evaluate_keysize(void *thread_arg)
 {
@@ -45,6 +52,20 @@ void *evaluate_keysize(void *thread_arg)
     }
     data->score = get_key_score(data->decryption, data->bytes_length);
     printf("Key size %d, score %3.2f\n", data->keysize, data->score);
+
+    // update the global best variables if appropriate
+    pthread_mutex_lock(&global_update);
+    // if two keys produce the same best score, prefer the shorter one
+    // because "rosie" and "rosierosie" and "rosierosierosie" are the same
+    if (data->score < *(data->best_score) ||
+        (data->score == *(data->best_score) &&
+         data->keysize < *(data->best_keysize))) {
+        *(data->best_keysize) = data->keysize;
+        memcpy(data->best_key, data->key, data->keysize);
+        memcpy(data->best_decryption, data->decryption, data->bytes_length);
+        *(data->best_score) = data->score;
+    }
+    pthread_mutex_unlock(&global_update);
 }
 
 int main(int argc, char **argv)
@@ -83,6 +104,7 @@ int main(int argc, char **argv)
     pthread_t thread[31];
     int rc;
     void *status;
+    pthread_mutex_init(&global_update, NULL);
     float best_score = FLT_MAX;
     unsigned char best_key[33];
     unsigned char best_decryption[bytes_length];
@@ -90,9 +112,13 @@ int main(int argc, char **argv)
         thread_data_array[keysize - 2].bytes = bytes;
         thread_data_array[keysize - 2].bytes_length = bytes_length;
         thread_data_array[keysize - 2].keysize = keysize;
+        thread_data_array[keysize - 2].best_keysize = &best_keysize;
         thread_data_array[keysize - 2].key = malloc(keysize);
+        thread_data_array[keysize - 2].best_key = best_key;
         thread_data_array[keysize - 2].decryption = malloc(bytes_length);
+        thread_data_array[keysize - 2].best_decryption = best_decryption;
         thread_data_array[keysize - 2].score = 0.0;
+        thread_data_array[keysize - 2].best_score = &best_score;
         rc = pthread_create(&thread[keysize - 2], NULL, evaluate_keysize,
                             (void *) &thread_data_array[keysize - 2]);
         if (rc) {
@@ -101,19 +127,10 @@ int main(int argc, char **argv)
     }
     for (int keysize = 2; keysize <= 32; keysize++) {
         pthread_join(thread[keysize - 2], &status);
-        if (thread_data_array[keysize - 2].score < best_score) {
-            best_score = thread_data_array[keysize - 2].score;
-            best_keysize = keysize;
-            memcpy(best_key,
-                   thread_data_array[keysize - 2].key,
-                   keysize);
-            memcpy(best_decryption,
-                   thread_data_array[keysize - 2].decryption,
-                   bytes_length);
-        }
         free(thread_data_array[keysize - 2].key);
         free(thread_data_array[keysize - 2].decryption);
     }
+    pthread_mutex_destroy(&global_update);
     free(bytes);
     printf("Best key is ");
     for (int i = 0; i < best_keysize; i++) {
