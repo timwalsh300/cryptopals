@@ -52,7 +52,7 @@ char *bytes_to_hex(unsigned char *bytes, int bytes_len)
 
 unsigned char *base64_to_bytes(unsigned char *base64, int base64_len)
 {
-    int buffer_size = base64_len < 4 ? 4 : base64_len / 4 * 3 + 1;
+    int buffer_size = base64_len < 4 ? 4 : base64_len * 3 / 4 + 1;
     unsigned char *bytes = malloc(buffer_size);
     int code = EVP_DecodeBlock(bytes, base64, base64_len);
     if (code == -1) {
@@ -64,7 +64,7 @@ unsigned char *base64_to_bytes(unsigned char *base64, int base64_len)
 
 unsigned char *bytes_to_base64(unsigned char *bytes, int bytes_len)
 {
-    int buffer_size = bytes_len < 3 ? 5 : bytes_len / 3 * 4 + 1;
+    int buffer_size = bytes_len < 3 ? 5 : bytes_len * 4 / 3 + 1;
     unsigned char *base64 = malloc(buffer_size);
     EVP_EncodeBlock(base64, bytes, bytes_len);
     return base64;
