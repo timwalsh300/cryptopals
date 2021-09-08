@@ -140,7 +140,7 @@ float get_key_score(unsigned char *decryption, int num_bytes)
 // which is most likely English text
 unsigned char find_single_char_key(unsigned char *ciphertext, int length)
 {
-    unsigned char best_key;
+    unsigned char best_key = ' ';
     float best_score = FLT_MAX;
     unsigned char test_key[length];
     unsigned char *test_decryption;

@@ -28,8 +28,7 @@ int main(int argc, char **argv)
     int inl = strlen(base64) * 3 / 4;
     unsigned char out[inl];
     int outl;
-    unsigned char iv[128];
-    int plaintext_len;
+    unsigned char iv[16];
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     EVP_DecryptInit_ex(ctx, EVP_aes_128_ecb(), NULL, key, iv);
     EVP_DecryptUpdate(ctx, out, &outl, in, inl);
